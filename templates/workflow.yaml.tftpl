@@ -1,0 +1,62 @@
+name: Build and Deploy to AKS
+
+on:
+  push:
+    branches: ["master"]
+  pull_request:
+    branches: ["master"]
+  workflow_dispatch:
+
+env:
+  IMAGE_NAME: ${image_name}
+  REGISTRY: ${registry}
+  DEPLOYMENT_NAME: ${deployment_name}
+  K8S_NAMESPACE: ${k8s_namespace}
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set image version
+        run: echo "VERSION=1.0.$${{ github.run_number }}" >> $GITHUB_ENV
+
+      - name: Log in to ACR
+        uses: azure/docker-login@v1
+        with:
+          login-server: $${{ env.REGISTRY }}
+          username:    $${{ secrets.REGISTRY_USERNAME }}
+          password:    $${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: $${{ env.REGISTRY }}/$${{ env.IMAGE_NAME }}:$${{ env.VERSION }}
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: $${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Set AKS context
+        uses: azure/aks-set-context@v3
+        with:
+          cluster-name: ${aks_cluster_name}
+          resource-group: ${resource_group}
+
+      - name: Update deployment manifest
+        run: |
+          sed -i "s/__VERSION_PLACEHOLDER__/$${VERSION}/g" deployment.yaml
+
+      - name: Deploy to Kubernetes
+        run: |
+          kubectl apply -f deployment.yaml -n $${{ env.K8S_NAMESPACE }}
+
+      - name: Verify deployment
+        run: |
+          kubectl get deployments -n $${{ env.K8S_NAMESPACE }} $${{ env.DEPLOYMENT_NAME }} -o wide
+          kubectl get pods -n $${{ env.K8S_NAMESPACE }} -l app=$${{ env.IMAGE_NAME }}

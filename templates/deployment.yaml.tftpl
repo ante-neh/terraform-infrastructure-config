@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ${deployment_name}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ${image_name}
+  template:
+    metadata:
+      labels:
+        app: ${image_name}
+    spec:
+      containers:
+        - name: ${image_name}
+          image: ${registry}/${image_name}:${VERSION}
+          imagePullPolicy: Always
+          ports:
+            - containerPort: ${container_port}
+          env:
+            - name: PORT
+              value: "${container_port}"
+            
+            %{ for key, value in jsondecode(environment_vars) ~}
+            - name: ${key}
+              value: "${value}"
+            %{ endfor ~}
+            
+            # Secrets
+            %{ for secret in jsondecode(secrets) ~}
+            - name: ${secret.name}
+              valueFrom:
+                secretKeyRef:
+                  name: ${secret.secret_name}
+                  key: ${secret.key}
+            %{ endfor ~}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ${image_name}-service
+spec:
+  type: ClusterIP
+  selector:
+    app: ${image_name}
+  ports:
+    - port: ${container_port}
+      targetPort: ${container_port}

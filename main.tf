@@ -143,6 +143,17 @@ resource "github_repository_file" "workflow" {
   overwrite_on_create = true
 }
 
+data "external" "env_files" {
+  for_each = toset(var.repo_names)
+  program = ["python3", "${path.module}/parse_env.py", "${path.module}/env_files/.env.${each.value}"]
+}
+
+locals {
+  env_vars = {
+    for repo in var.repo_names :
+    repo => data.external.env_files[repo].result
+  }
+}
 
 resource "github_repository_file" "deployment" {
   for_each = github_repository.repo
@@ -154,7 +165,7 @@ resource "github_repository_file" "deployment" {
     image_name       = each.value.name
     registry         = data.azurerm_container_registry.acr.login_server
     container_port   = var.container_port
-    environment_vars = jsonencode(var.environment_vars)
+    environment_vars = jsonencode(lookup(local.env_vars, each.value.name, {}))
     secrets          = jsonencode(var.secrets)
     deployment_name  = "${replace(each.value.name, "_", "-")}-deployment"
     VERSION          = "__VERSION_PLACEHOLDER__"
@@ -164,6 +175,7 @@ resource "github_repository_file" "deployment" {
   commit_email        = "terraform@example.com"
   overwrite_on_create = true
 }
+
 
 
 resource "github_repository" "existing_repos" {

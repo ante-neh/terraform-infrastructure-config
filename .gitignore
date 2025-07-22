@@ -1,0 +1,4 @@
+.terraform
+env_files
+.terraform.lock.hcl
+terraform.tfvars 

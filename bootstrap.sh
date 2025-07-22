@@ -5,6 +5,11 @@ set -e
 export PATH=$PATH:/usr/bin:/usr/local/bin:/opt/homebrew/bin
 
 
+if ! command -v az &> /dev/null; then
+    echo "⚠️  Azure CLI not found. Please install it for better management: https://aka.ms/install-azure-cli"
+fi
+
+
 if [[ $# -lt 6 ]]; then
   echo "❌ Usage: $0 <aks-name> <aks-rg> <acr-name> <acr-rg> <repo1,repo2,...> <github-owner> [--reset]"
   exit 1
@@ -60,11 +65,11 @@ repo_names          = $REPO_LIST
 reset_sp            = $RESET_SP
 EOF
 
-
+terraform init
 terraform apply -auto-approve
 
 echo ""
-echo "✅ Update complete"
+echo "✅ Bootstrap complete"
 echo "📁 Environment files:"
 for repo in "${REPO_NAMES[@]}"; do
   echo "  - env_files/.env.$repo"

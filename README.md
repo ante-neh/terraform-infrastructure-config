@@ -46,8 +46,8 @@ By simply supplying your AKS/ACR details and GitHub organization information, Te
 ### 1. Clone the repo
 
 ```bash
-x git clone https://github.com/<your-org>/<this-repo>.git
-cd <this-repo>
+git clone https://github.com/ante-neh/terraform-infrastructure-config.git
+cd terraform-infrastructure-config
 ```
 
 ### 2. Bootstrap (first-time run)
